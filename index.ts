@@ -335,4 +335,84 @@ export default async function (api: ExtensionAPI) {
       },
     }),
   );
+
+  // Experimental agentic tools (stolen from BlockedPath/pi-xai-oauth "registerXaiTools"
+  // for explicit callable surface parity after the OAuth integration).
+  // These are intentionally lightweight "prompt the model to act as search/code engine"
+  // simulations (exactly matching the reference prompts + grok-4.3 + reasoning effort).
+  // They reuse the project's createRuntime/callXaiResponses/formatResponseSummary/textResult
+  // so they get unified credential resolution (OAuth + env + grok-cli), consistent output
+  // formatting (tokens, citations, model header), and superior error messages.
+  // Complements (does not duplicate) the two rich tools and the native built-in tool
+  // injection in agentic mode. Registered as first-class tools so users can invoke them
+  // directly for controlled research scenarios.
+  api.registerTool(
+    defineTool({
+      name: "xai_web_search",
+      label: "xAI Web Search",
+      description: "Search the web using Grok (prompts the model for current web knowledge).",
+      parameters: Type.Object({
+        query: Type.String({ description: "Search query" }),
+      }),
+      async execute(_toolCallId, params) {
+        const { query } = params;
+        const { apiKey, config } = await createRuntime();
+        const prompt = `Perform a web search for: ${query}. Summarize the top results with sources and key facts.`;
+        const body: Record<string, unknown> = {
+          model: "grok-4.3",
+          input: [{ role: "user" as const, content: prompt }],
+          reasoning: { effort: "medium" },
+        };
+        const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
+        return textResult(formatResponseSummary(result, "xAI Web Search"));
+      },
+    }),
+  );
+
+  api.registerTool(
+    defineTool({
+      name: "xai_x_search",
+      label: "xAI X Search",
+      description: "Search X (Twitter) using Grok.",
+      parameters: Type.Object({
+        query: Type.String({ description: "X search query" }),
+      }),
+      async execute(_toolCallId, params) {
+        const { query } = params;
+        const { apiKey, config } = await createRuntime();
+        const prompt = `Search X/Twitter for recent posts about: ${query}. Summarize key tweets, users, and sentiment.`;
+        const body: Record<string, unknown> = {
+          model: "grok-4.3",
+          input: [{ role: "user" as const, content: prompt }],
+          reasoning: { effort: "medium" },
+        };
+        const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
+        return textResult(formatResponseSummary(result, "xAI X Search"));
+      },
+    }),
+  );
+
+  api.registerTool(
+    defineTool({
+      name: "xai_code_execution",
+      label: "xAI Code Execution",
+      description:
+        "Execute Python code by asking Grok to run/analyze it (safe simulation via model).",
+      parameters: Type.Object({
+        code: Type.String({ description: "Python code to execute or analyze" }),
+      }),
+      async execute(_toolCallId, params) {
+        const { code } = params;
+        const { apiKey, config } = await createRuntime();
+        const prompt = `Execute or analyze this Python code and show the result or output:\n\n${code}`;
+        const body: Record<string, unknown> = {
+          model: "grok-4.3",
+          input: [{ role: "user" as const, content: prompt }],
+          reasoning: { effort: "low" },
+        };
+        const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
+        return textResult(formatResponseSummary(result, "xAI Code Execution"));
+      },
+    }),
+  );
 }

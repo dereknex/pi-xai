@@ -1,14 +1,14 @@
 # pi-xai
 
-Pi extension for xAI Grok Build (Coding Plan) — Responses API, native OAuth, 2 powerful tools + automatic agentic mode.
+Pi extension for xAI Grok Build (Coding Plan) — Responses API, native OAuth, 5 tools (2 rich + 3 experimental agentic) + automatic agentic mode.
 
 ## Features
 
-- **grok-build provider** — `/login grok-build` (native OAuth, no binary), Responses API (`openai-responses`), full reasoning
+- **grok-build provider** — `/login grok-build` (native Web PKCE OAuth recommended with browser + manual-paste fallback, or Device Code for headless; no binary), Responses API (`openai-responses`), full reasoning
 - `xai_generate_text` — stateful conversations, structured JSON output, built-in tools, `previousResponseId`, custom timeout
 - `xai_multi_agent` — 4/16-agent research (`reasoningEffort`), live progress updates via `onUpdate`
 - **Agentic mode** — when any `grok-*` model is active, the extension auto-injects web_search / x_search / code_execution; the model decides what to call (the "magic")
-- Full OAuth implementation: device code flow, JWT expiry + refresh lock, optional import from `~/.grok/auth.json`
+- Full OAuth implementation: Web PKCE (OIDC discovery, PKCE, callback server with CORS + manual input) + Device Code fallback, JWT expiry + per-key refresh lock, improved ~/.grok/auth.json parsing (canonical + legacy), optional import from Grok CLI
 
 Models (via `/model grok-build/...`): `grok-build` (primary Coding Plan alias), `grok-4.3`, `grok-4.3-latest`.
 
@@ -23,14 +23,17 @@ pi install npm:pi-xai
 /model grok-build/grok-build
 ```
 
-Ask anything. Agentic mode handles research for you, or call the two explicit tools for precise control.
+Ask anything. Agentic mode handles research for you, or call any of the five explicit tools (`xai_generate_text`, `xai_multi_agent`, `xai_web_search`, `xai_x_search`, `xai_code_execution`) for precise/direct control.
 
 ## Tools
 
-| Tool                | Description                                                      |
-| ------------------- | ---------------------------------------------------------------- |
-| `xai_generate_text` | Responses API text gen with reasoning, JSON schema, tools, state |
-| `xai_multi_agent`   | Deep research (4 or 16 agents), progress, multi-turn             |
+| Tool                 | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `xai_generate_text`  | Responses API text gen with reasoning, JSON schema, tools, state |
+| `xai_multi_agent`    | Deep research (4 or 16 agents), progress, multi-turn             |
+| `xai_web_search`     | Web search via Grok (prompt simulation for current knowledge)    |
+| `xai_x_search`       | X/Twitter search via Grok (prompt simulation)                    |
+| `xai_code_execution` | Python code analysis/execution simulation via Grok               |
 
 ## Agentic mode config (optional)
 

@@ -14,10 +14,15 @@ export function registerXaiProvider(api: ExtensionAPI) {
 
     oauth: {
       name: "xAI (Grok Build)",
+      // Enable PKCE callback server + manual redirect URL paste fallback in Pi core UI.
+      // (usesCallbackServer is part of the full OAuthProviderInterface in @mariozechner/pi-ai;
+      // cast to satisfy the ProviderConfig inline type in pi-coding-agent while still
+      // allowing the core's interactive-mode to read it for showing onManualCodeInput.)
+      usesCallbackServer: true,
       login: loginXai,
       refreshToken: refreshXaiToken,
       getApiKey: getXaiApiKeyFromCredentials,
-    },
+    } as any,
 
     // Exact model list from Hermes PR #25941 for the Coding Plan.
     // No fast/mini variants — only what the Coding Plan officially exposes.

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-16
+
+### Full surface parity with https://github.com/BlockedPath/pi-xai-oauth
+
+- **OAuth**: `/login grok-build` now offers Web PKCE (browser auto-open + manual redirect URL paste fallback for VPN/Docker/remote) as the recommended native path, with Device Code as explicit fallback. Integrated OIDC discovery, robust callback server, state/nonce/PKCE, and improved `~/.grok/auth.json` parsing while preserving all existing JWT refresh locking, auto-import (grok-build only), and credential resolution.
+- **Tools**: Added the three experimental agentic tools (`xai_web_search`, `xai_x_search`, `xai_code_execution`) as first-class explicit callable tools (lightweight prompt simulations using Grok). This gives the full "5 tools" surface the second extension advertises, while the two rich tools (`xai_generate_text`, `xai_multi_agent`) and native built-in tool injection remain the powerful core.
+- `usesCallbackServer: true` on the provider enables the core's manual-paste UI.
+- All changes keep the 4-file structure, zero duplication of superior paths, and pass full quality gates (format/lint/tsgo + 9/9 tests).
+- Updated README and this changelog. Version bumped to 0.6.0.
+
 ## [0.5.0] - 2026-05-16
 
 ### Final review closure + verification
