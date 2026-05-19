@@ -120,6 +120,26 @@ async function callXaiResponses(
   body: Record<string, unknown>,
   timeout?: number,
 ): Promise<any> {
+  // Same defensive content normalization as the provider hook.
+  // Protects direct rich-tool calls (xai_generate_text, xai_x_search, etc.)
+  // and any paths used by sibling packages during development.
+  const input = (body as any).input;
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      if (!item || typeof item !== "object" || !item.role) continue;
+      const c = (item as any).content;
+      const isEmpty =
+        c === undefined || c === null || c === "" || (Array.isArray(c) && c.length === 0);
+      if (isEmpty) {
+        const partType =
+          (item as any).type === "message" && item.role === "assistant"
+            ? "output_text"
+            : "input_text";
+        (item as any).content = [{ type: partType, text: "" }];
+      }
+    }
+  }
+
   const url = `${baseUrl.replace(/\/+$/, "")}/responses`;
   const init: RequestInit & { signal?: AbortSignal } = {
     method: "POST",

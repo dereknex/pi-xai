@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-05-19
+
+### Fixed
+
+- **Hardened 400 defense for direct Responses calls**: The previous 0.8.1 fix (content normalization in `before_provider_request`) covered normal agentic chat. Added the identical normalization inside `callXaiResponses` (used by all rich tools: `xai_generate_text`, `xai_x_search`, `xai_web_search`, `xai_multi_agent`, etc.). This also protects paths taken by sibling extensions (`pi-xai-imagine`, `pi-xai-voice`) during local development and any direct `/responses` usage. Matches the reproduction in the `pi-xai-imagine` workspace with high reasoning + multi-turn UI discussion.
+
+All changes continue the project's strict "smallest possible diff + no new helpers + extend existing patterns" discipline.
+
 ## [0.8.1] - 2026-05-18
 
 ### Fixed
