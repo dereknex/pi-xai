@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-05-21
+
+### Fixed — client-side tools (bash, edit, read, find…) now visible to Grok
+
+- **Critical: agentic mode was replacing Pi's client-side tool definitions instead of appending to them.** When `xai.text.agentic` is enabled (the default), the `before_provider_request` hook set `payload.tools = builtins`, which silently threw away all the `{type:"function", name:"bash", ...}` entries the Pi driver had already placed there. Grok never received the bash/edit/read/find/grep/write tool schemas, so it could not call them — it would do research-style responses but never actually execute tools. Fixed by reading the existing array first and spreading it: `payload.tools = [...existing, ...builtins]`.
+
 ## [0.8.4] - 2026-05-21
 
 ### Fixed — tools actually use xAI built-ins, rich output display

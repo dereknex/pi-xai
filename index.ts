@@ -369,8 +369,13 @@ export default async function (api: ExtensionAPI) {
     const config = resolveXaiConfig();
     const agentic = getAgenticConfig(config);
     if (agentic.enabled && agentic.tools.length) {
-      // Inject configured built-in tools into the request
-      payload.tools = agentic.tools.map((t) => ({ type: t }));
+      // Append xAI server-side built-in tools alongside any client-side function tools
+      // (bash, edit, read, etc.) that the Pi driver already placed in payload.tools.
+      // Previously this *replaced* the whole array, which silently discarded all
+      // client-side tools so Grok never saw bash/edit/find and couldn't call them.
+      const builtins = agentic.tools.map((t) => ({ type: t }));
+      const existing = Array.isArray((payload as any).tools) ? (payload as any).tools : [];
+      payload.tools = [...existing, ...builtins];
     }
 
     // Sanitize payload for xAI Responses compatibility.
