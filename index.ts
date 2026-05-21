@@ -83,12 +83,33 @@ function formatResponseSummary(
             inlineAnnotations += (c as any).annotations.length;
         }
       }
-    } else if (
-      ["function_call", "web_search_call", "x_search_call", "code_interpreter_call"].includes(
-        item.type,
-      )
-    ) {
-      const name = typeof item.name === "string" ? item.name : item.type;
+    } else if (item.type === "web_search_call") {
+      // Show the query from action.query (search) or action.url (open_page/find_in_page)
+      const action = item.action;
+      const detail = action?.query
+        ? ` "${action.query}"`
+        : action?.url
+          ? ` ${action.url}`
+          : typeof item.name === "string"
+            ? ` (${item.name})`
+            : "";
+      const status = item.status ? ` [${item.status}]` : "";
+      toolCalls.push(`- Web search${detail}${status}`);
+    } else if (item.type === "x_search_call") {
+      const action = item.action;
+      const detail = action?.query
+        ? ` "${action.query}"`
+        : typeof item.name === "string"
+          ? ` (${item.name})`
+          : "";
+      const status = item.status ? ` [${item.status}]` : "";
+      toolCalls.push(`- X search${detail}${status}`);
+    } else if (item.type === "code_interpreter_call") {
+      const lang = item.language ?? "python";
+      const status = item.status ? ` [${item.status}]` : "";
+      toolCalls.push(`- Code execution (${lang})${status}`);
+    } else if (item.type === "function_call") {
+      const name = typeof item.name === "string" ? item.name : "function_call";
       toolCalls.push(`- Tool call: ${name}`);
     }
   }
@@ -104,8 +125,12 @@ function formatResponseSummary(
     ? ` (reasoning: ${result.usage.output_tokens_details.reasoning_tokens})`
     : "";
   const tools = result.server_side_tool_usage
-    ? `\nTool calls: ${Object.entries(result.server_side_tool_usage)
-        .map(([k, v]) => `${k}=${v}`)
+    ? `\nServer-side tools: ${Object.entries(result.server_side_tool_usage)
+        .map(([k, v]) => {
+          // Shorten SERVER_SIDE_TOOL_WEB_SEARCH → web_search (×N)
+          const short = k.replace(/^SERVER_SIDE_TOOL_/, "").toLowerCase();
+          return `${short}×${v}`;
+        })
         .join(", ")}`
     : "";
   const body = [text, toolCallText].filter(Boolean).join("\n\n");
@@ -800,18 +825,18 @@ export default async function (api: ExtensionAPI) {
     defineTool({
       name: "xai_web_search",
       label: "xAI Web Search",
-      description: "Search the web using Grok (prompts the model for current web knowledge).",
+      description:
+        "Search the web using Grok's live web_search built-in tool (real-time results with citations).",
       parameters: Type.Object({
         query: Type.String({ description: "Search query" }),
       }),
       async execute(_toolCallId, params) {
         const { query } = params;
         const { apiKey, config } = await createRuntime();
-        const prompt = `Perform a web search for: ${query}. Summarize the top results with sources and key facts.`;
         const body: Record<string, unknown> = {
           model: "grok-4.3",
-          input: [{ role: "user" as const, content: prompt }],
-          reasoning: { effort: "medium" },
+          input: [{ role: "user" as const, content: query }],
+          tools: [{ type: "web_search" }],
         };
         const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
         return textResult(formatResponseSummary(result, "xAI Web Search"));
@@ -823,18 +848,18 @@ export default async function (api: ExtensionAPI) {
     defineTool({
       name: "xai_x_search",
       label: "xAI X Search",
-      description: "Search X (Twitter) using Grok.",
+      description:
+        "Search X (Twitter) using Grok's live x_search built-in tool (real posts with citations).",
       parameters: Type.Object({
         query: Type.String({ description: "X search query" }),
       }),
       async execute(_toolCallId, params) {
         const { query } = params;
         const { apiKey, config } = await createRuntime();
-        const prompt = `Search X/Twitter for recent posts about: ${query}. Summarize key tweets, users, and sentiment.`;
         const body: Record<string, unknown> = {
           model: "grok-4.3",
-          input: [{ role: "user" as const, content: prompt }],
-          reasoning: { effort: "medium" },
+          input: [{ role: "user" as const, content: query }],
+          tools: [{ type: "x_search" }],
         };
         const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
         return textResult(formatResponseSummary(result, "xAI X Search"));
@@ -847,18 +872,17 @@ export default async function (api: ExtensionAPI) {
       name: "xai_code_execution",
       label: "xAI Code Execution",
       description:
-        "Execute Python code by asking Grok to run/analyze it (safe simulation via model).",
+        "Execute Python code via Grok's live code_interpreter built-in tool (real sandboxed execution).",
       parameters: Type.Object({
-        code: Type.String({ description: "Python code to execute or analyze" }),
+        code: Type.String({ description: "Python code to execute" }),
       }),
       async execute(_toolCallId, params) {
         const { code } = params;
         const { apiKey, config } = await createRuntime();
-        const prompt = `Execute or analyze this Python code and show the result or output:\n\n${code}`;
         const body: Record<string, unknown> = {
           model: "grok-4.3",
-          input: [{ role: "user" as const, content: prompt }],
-          reasoning: { effort: "low" },
+          input: [{ role: "user" as const, content: `Execute this Python code:\n\n${code}` }],
+          tools: [{ type: "code_interpreter" }],
         };
         const result = await callXaiResponses(apiKey, config.xai.baseUrl, body, 300_000);
         return textResult(formatResponseSummary(result, "xAI Code Execution"));

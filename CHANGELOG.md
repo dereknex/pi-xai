@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-05-21
+
+### Fixed — tools actually use xAI built-ins, rich output display
+
+- **`xai_web_search` now passes `tools: [{type: "web_search"}]`**: Previously the tool only prompted Grok with a text instruction to "summarize web search results" — the model used its training knowledge, not real-time live search. Now the request includes the xAI Responses API `web_search` built-in tool so Grok actually calls it and returns live results with citations.
+- **`xai_x_search` now passes `tools: [{type: "x_search"}]`**: Same fix — previously just a prompt, now a genuine live X search via the built-in tool.
+- **`xai_code_execution` now passes `tools: [{type: "code_interpreter"}]`**: Previously asked the model to analyze/simulate code; now uses the real sandboxed execution built-in.
+- **`formatResponseSummary` shows rich tool activity**: `web_search_call` items now display their actual query (`- Web search "latest news on xAI" [completed]`); `x_search_call` similarly; `code_interpreter_call` shows language + status. Previously all showed as generic `- Tool call: web_search_call`.
+- **Cleaner `server_side_tool_usage` footer**: `SERVER_SIDE_TOOL_WEB_SEARCH=2` → `web_search×2`.
+
+No behavior changes to agentic mode injection, `normalizeForXai`, or the `before_provider_request` hook. All quality gates passed (typecheck, tests).
+
 ## [0.8.3] - 2026-05-19
 
 ### Improved / Hermes-like aggressive parity + docs + release
