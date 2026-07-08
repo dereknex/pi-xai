@@ -21,7 +21,7 @@ Reference: [Hermes Agent](https://github.com/NousResearch/hermes-agent) (xAI OAu
 ```bash
 pi install npm:pi-xai
 /login grok-build
-/model grok-build/grok-build-0.1
+/model grok-build/grok-4.5
 ```
 
 Live X news: agentic **`x_search`** or **`xai_x_search`** — not harness `x_semantic_search` / `x_keyword_search`.

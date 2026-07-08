@@ -7,10 +7,12 @@ import { GROK_BUILD_MODELS } from "../xai-provider.ts";
 describe("Hermes xAI parity", () => {
   test("grok-build model list", () => {
     expect(GROK_BUILD_MODELS.map((m) => m.id)).toEqual([
+      "grok-4.5",
       "grok-build-0.1",
       "grok-4.3",
       "grok-composer-2.5-fast",
     ]);
+    expect(GROK_BUILD_MODELS.find((m) => m.id === "grok-4.5")?.contextWindow).toBe(500_000);
     expect(GROK_BUILD_MODELS.find((m) => m.id === "grok-build-0.1")?.contextWindow).toBe(256_000);
     expect(GROK_BUILD_MODELS.find((m) => m.id === "grok-4.3")?.contextWindow).toBe(1_000_000);
     expect(GROK_BUILD_MODELS.find((m) => m.id === "grok-composer-2.5-fast")?.contextWindow).toBe(
@@ -19,6 +21,7 @@ describe("Hermes xAI parity", () => {
   });
 
   test("grokSupportsReasoningEffort allowlist matches Hermes", () => {
+    expect(grokSupportsReasoningEffort("grok-4.5")).toBe(true);
     expect(grokSupportsReasoningEffort("grok-4.3")).toBe(true);
     expect(grokSupportsReasoningEffort("grok-build")).toBe(false);
     expect(grokSupportsReasoningEffort("grok-build-0.1")).toBe(false);
@@ -26,6 +29,7 @@ describe("Hermes xAI parity", () => {
   });
 
   test("grokWantsEncryptedReasoningInclude follows xAI reasoning models", () => {
+    expect(grokWantsEncryptedReasoningInclude("grok-4.5")).toBe(true);
     expect(grokWantsEncryptedReasoningInclude("grok-4.3")).toBe(true);
     expect(grokWantsEncryptedReasoningInclude("grok-composer-2.5-fast")).toBe(false);
     expect(grokWantsEncryptedReasoningInclude("grok-4.20-reasoning")).toBe(true);

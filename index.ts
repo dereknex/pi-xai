@@ -420,7 +420,7 @@ export default async function (api: ExtensionAPI) {
         prompt: Type.String({ description: "User prompt / message" }),
         model: Type.Optional(
           Type.String({
-            description: "Model override (default: grok-4.3)",
+            description: "Model override (default: grok-4.5)",
           }),
         ),
         reasoningEffort: Type.Optional(
@@ -434,7 +434,7 @@ export default async function (api: ExtensionAPI) {
             ],
             {
               description:
-                "grok-4.3: none/low/medium/high. grok-4.20-multi-agent: low/medium/high/xhigh (agent count).",
+                "grok-4.5 / grok-4.3: none/low/medium/high. grok-4.20-multi-agent: low/medium/high/xhigh (agent count).",
             },
           ),
         ),
@@ -508,11 +508,11 @@ export default async function (api: ExtensionAPI) {
           }
         }
 
-        const modelToUse = model || "grok-4.3";
+        const modelToUse = model || "grok-4.5";
         const isReasoningModel =
-          modelToUse.includes("4.3") ||
+          grokSupportsReasoningEffort(modelToUse) ||
           modelToUse === "grok-build" ||
-          modelToUse === "grok-build-0.1" ||
+          modelToUse.startsWith("grok-build-") ||
           modelToUse.includes("reasoning");
         const effectiveTimeout = timeout ?? (isReasoningModel ? 3_600_000 : 300_000);
 
@@ -549,7 +549,7 @@ export default async function (api: ExtensionAPI) {
       name: "xai_multi_agent",
       label: "xAI Multi-Agent Research",
       description:
-        "Deep research via xAI grok-build models (grok-build-0.1 / grok-4.3). Orchestrates multiple agents with built-in tools (web_search, x_search + advanced via objects, collections_search). Note: grok-build-0.1 does not accept explicit reasoningEffort (maximum reasoning internally). Returns formatted summary with progress via onUpdate; streaming content via core provider or raw API.",
+        "Deep research via xAI multi-agent model (grok-4.20-multi-agent). Orchestrates multiple agents with built-in tools (web_search, x_search + advanced via objects, collections_search). Returns formatted summary with progress via onUpdate; streaming content via core provider or raw API.",
       parameters: Type.Object({
         prompt: Type.String({ description: "Research query / question" }),
         reasoningEffort: Type.Optional(

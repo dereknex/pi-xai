@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-07-08
+
+### Added
+
+- **Grok 4.5** (`grok-4.5`) in the `grok-build` model picker — 500k context, reasoning + `reasoningEffort`, encrypted reasoning include. Default for `xai_generate_text` is now `grok-4.5`.
+
+### Fixed
+
+- **Reasoning timeout heuristic** for `xai_generate_text` now uses the shared effort allowlist (includes `grok-4.5`) instead of hardcoding `4.3`.
+
 ## [0.9.1] - 2026-07-02
 
 ### Fixed

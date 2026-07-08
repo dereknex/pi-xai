@@ -4,8 +4,9 @@ import { loginXai, refreshXaiToken, getXaiApiKeyFromCredentials } from "./xai-oa
 
 const GROK_COST = { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 };
 
-// ponytail: aliases grok-build / grok-4.3-latest still work if typed manually; picker shows one entry each
+// ponytail: aliases like grok-4.5-latest / grok-4.3-latest still work if typed manually; picker shows one entry each
 const GROK_BUILD_MODEL_SPECS = [
+  { id: "grok-4.5", name: "Grok 4.5", reasoning: true, contextWindow: 500_000 },
   { id: "grok-build-0.1", name: "Grok Build", reasoning: false, contextWindow: 256_000 },
   { id: "grok-4.3", name: "Grok 4.3", reasoning: true, contextWindow: 1_000_000 },
   {
