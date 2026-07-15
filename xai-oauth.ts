@@ -522,9 +522,15 @@ async function refreshXaiAccessToken(refreshToken: string): Promise<{
 // Grok CLI reader (optional convenience — auto-detect if you already ran `grok login` elsewhere)
 // =============================================================================
 
-export function readGrokCliAuth():
-  | { accessToken: string; email?: string; source: string }
-  | undefined {
+export type GrokCliAuth = {
+  accessToken: string;
+  /** Present on current Grok CLI auth.json — required for session refresh. */
+  refreshToken?: string;
+  email?: string;
+  source: string;
+};
+
+export function readGrokCliAuth(): GrokCliAuth | undefined {
   if (!existsSync(GROK_CLI_AUTH_PATH)) return undefined;
 
   try {
@@ -544,8 +550,13 @@ export function readGrokCliAuth():
       const entry = value as Record<string, unknown>;
       const access = entry.key || entry.access_token;
       if (typeof access === "string" && access.trim()) {
+        const refresh =
+          (typeof entry.refresh_token === "string" && entry.refresh_token.trim()) ||
+          (typeof entry.refreshToken === "string" && entry.refreshToken.trim()) ||
+          undefined;
         return {
           accessToken: access.trim(),
+          refreshToken: refresh || undefined,
           email: typeof entry.email === "string" ? entry.email : undefined,
           source: `grok-cli:${GROK_CLI_AUTH_PATH}`,
         };
@@ -559,8 +570,14 @@ export function readGrokCliAuth():
         ? (legacy as any).key || (legacy as any).access_token || (legacy as any).token
         : "";
     if (legacyAccess) {
+      const leg = legacy as Record<string, unknown>;
+      const refresh =
+        (typeof leg.refresh_token === "string" && leg.refresh_token.trim()) ||
+        (typeof leg.refreshToken === "string" && leg.refreshToken.trim()) ||
+        undefined;
       return {
         accessToken: String(legacyAccess),
+        refreshToken: refresh || undefined,
         email: undefined,
         source: `grok-cli-legacy:${GROK_CLI_AUTH_PATH}`,
       };
@@ -898,7 +915,7 @@ async function performXaiPkceLogin(callbacks: OAuthLoginCallbacks): Promise<OAut
 
 // =============================================================================
 
-function importFromGrokCli(grokCli: { accessToken: string; email?: string }): OAuthCredentials {
+function importFromGrokCli(grokCli: GrokCliAuth): OAuthCredentials {
   const now = Date.now();
   const payload = decodeJwtPayload(grokCli.accessToken);
   const exp =
@@ -907,8 +924,9 @@ function importFromGrokCli(grokCli: { accessToken: string; email?: string }): OA
       : now + 24 * 60 * 60 * 1000;
   return {
     access: grokCli.accessToken,
-    refresh: "", // grok CLI tokens usually cannot be refreshed via this flow
-    expires: Math.max(now, exp), // accurate from JWT if present, else optimistic
+    // Current Grok CLI auth.json includes refresh_token — keep it so sessions survive.
+    refresh: grokCli.refreshToken?.trim() || "",
+    expires: Math.max(now, exp),
     source: "grok-cli-import",
     email: grokCli.email,
   };
@@ -1390,6 +1408,60 @@ export interface XaiKeyResolution {
   source: string;
 }
 
+function oauthRefreshPresent(refresh: unknown): refresh is string {
+  return typeof refresh === "string" && refresh.trim().length > 0;
+}
+
+/** Persist refreshed oauth credentials under a Pi auth provider key. */
+function persistPiOAuthEntry(
+  piAuth: PiAuthFile,
+  provider: string,
+  credentials: OAuthCredentials & { type?: string },
+): void {
+  try {
+    const current = { ...piAuth };
+    current[provider] = {
+      ...current[provider],
+      ...credentials,
+      type: "oauth",
+    };
+    const dir = dirname(PI_AUTH_PATH);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+    writeFileSync(PI_AUTH_PATH, JSON.stringify(current, null, 2));
+    chmodSync(PI_AUTH_PATH, 0o600);
+  } catch (writeErr) {
+    console.warn(`[pi-xai] Failed to persist refreshed xAI token for ${provider}: ${writeErr}`);
+  }
+}
+
+/**
+ * When pi auth has a dead access token but no refresh, steal refresh_token from
+ * ~/.grok/auth.json (same subscription session) and refresh + rewrite pi auth.
+ */
+async function tryRefreshUsingGrokCliRefresh(
+  provider: "grok-build" | "xai",
+  access: string,
+  piAuth: PiAuthFile,
+): Promise<XaiKeyResolution | undefined> {
+  const grok = readGrokCliAuth();
+  const refresh = grok?.refreshToken?.trim();
+  if (!refresh) return undefined;
+  try {
+    const refreshed = await withRefreshLock(`${provider}:grok-cli-refresh`, async () => {
+      const r = await refreshXaiToken({ access, refresh, expires: Date.now() });
+      persistPiOAuthEntry(piAuth, provider, r);
+      return r;
+    });
+    return {
+      apiKey: refreshed.access,
+      source: `pi-auth:${PI_AUTH_PATH}:${provider} (refreshed via grok-cli refresh_token)`,
+    };
+  } catch (err) {
+    console.warn(`[pi-xai] grok-cli refresh failed for ${provider}: ${err}`);
+    return undefined;
+  }
+}
+
 export async function getEffectiveXaiApiKey(options?: {
   env?: string;
   settingsApiKey?: string;
@@ -1416,28 +1488,20 @@ export async function getEffectiveXaiApiKey(options?: {
     }
 
     if (grokBuildEntry.type === "oauth" && grokBuildEntry.access) {
+      const access = grokBuildEntry.access as string;
       const storedExpired =
         typeof grokBuildEntry.expires === "number" && Date.now() >= grokBuildEntry.expires;
-      const jwtExpiring = isXaiAccessTokenExpiring(grokBuildEntry.access as string);
-      if ((storedExpired || jwtExpiring) && grokBuildEntry.refresh) {
+      const jwtExpiring = isXaiAccessTokenExpiring(access);
+      const needsRefresh = storedExpired || jwtExpiring;
+
+      if (needsRefresh && oauthRefreshPresent(grokBuildEntry.refresh)) {
         const refreshed = await withRefreshLock("grok-build", async () => {
           const r = await refreshXaiToken({
-            access: grokBuildEntry.access!,
+            access,
             refresh: grokBuildEntry.refresh as string,
             expires: grokBuildEntry.expires as number,
           });
-          try {
-            const current = piAuth!;
-            current["grok-build"] = { ...current["grok-build"], ...r, type: "oauth" };
-            const dir = dirname(PI_AUTH_PATH);
-            if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
-            writeFileSync(PI_AUTH_PATH, JSON.stringify(current, null, 2));
-            chmodSync(PI_AUTH_PATH, 0o600);
-          } catch (writeErr) {
-            console.warn(
-              `[pi-xai] Failed to persist refreshed xAI token for grok-build: ${writeErr}`,
-            );
-          }
+          persistPiOAuthEntry(piAuth!, "grok-build", r);
           return r;
         });
         return {
@@ -1445,17 +1509,55 @@ export async function getEffectiveXaiApiKey(options?: {
           source: `pi-auth:${PI_AUTH_PATH}:grok-build (refreshed)`,
         };
       }
-      return {
-        apiKey: grokBuildEntry.access,
-        source: `pi-auth:${PI_AUTH_PATH}:grok-build (oauth)`,
-      };
+
+      if (needsRefresh) {
+        // Empty refresh after CLI import without refresh_token — try ~/.grok/auth.json.
+        const rescued = await tryRefreshUsingGrokCliRefresh("grok-build", access, piAuth!);
+        if (rescued) return rescued;
+        // Fall through; do not hand out a known-dead access token.
+      } else {
+        return {
+          apiKey: access,
+          source: `pi-auth:${PI_AUTH_PATH}:grok-build (oauth)`,
+        };
+      }
     }
   }
 
   // 2. Direct Grok CLI file (~/.grok/auth.json) — optional fallback if you ran the official CLI elsewhere
   const grok = readGrokCliAuth();
   if (grok) {
-    return { apiKey: grok.accessToken, source: grok.source };
+    const jwtExpiring = isXaiAccessTokenExpiring(grok.accessToken);
+    if (jwtExpiring && oauthRefreshPresent(grok.refreshToken)) {
+      try {
+        const refreshed = await withRefreshLock("grok-cli", async () => {
+          return await refreshXaiToken({
+            access: grok.accessToken,
+            refresh: grok.refreshToken!,
+            expires: Date.now(),
+          });
+        });
+        // Opportunistically heal empty pi-auth grok-build refresh for next time.
+        if (piAuth) {
+          const existing = piAuth["grok-build"];
+          if (!existing || !oauthRefreshPresent(existing.refresh)) {
+            persistPiOAuthEntry(piAuth, "grok-build", {
+              ...refreshed,
+              source: "grok-cli-heal",
+              email: grok.email,
+            });
+          }
+        }
+        return {
+          apiKey: refreshed.access,
+          source: `${grok.source} (refreshed)`,
+        };
+      } catch (err) {
+        console.warn(`[pi-xai] grok-cli direct refresh failed: ${err}`);
+      }
+    } else if (!jwtExpiring) {
+      return { apiKey: grok.accessToken, source: grok.source };
+    }
   }
 
   // 3. "xai" entry in Pi auth (from /login xai or previous setup)
@@ -1465,30 +1567,28 @@ export async function getEffectiveXaiApiKey(options?: {
       return { apiKey: xaiEntry.key.trim(), source: `pi-auth:${PI_AUTH_PATH}:xai` };
     }
     if (xaiEntry.type === "oauth" && xaiEntry.access) {
+      const access = xaiEntry.access as string;
       const storedExpired = typeof xaiEntry.expires === "number" && Date.now() >= xaiEntry.expires;
-      const jwtExpiring = isXaiAccessTokenExpiring(xaiEntry.access as string);
-      if ((storedExpired || jwtExpiring) && xaiEntry.refresh) {
+      const jwtExpiring = isXaiAccessTokenExpiring(access);
+      const needsRefresh = storedExpired || jwtExpiring;
+      if (needsRefresh && oauthRefreshPresent(xaiEntry.refresh)) {
         const refreshed = await withRefreshLock("xai", async () => {
           const r = await refreshXaiToken({
-            access: xaiEntry.access!,
+            access,
             refresh: xaiEntry.refresh as string,
             expires: xaiEntry.expires as number,
           });
-          try {
-            const current = piAuth!;
-            current.xai = { ...current.xai, ...r, type: "oauth" };
-            const dir = dirname(PI_AUTH_PATH);
-            if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
-            writeFileSync(PI_AUTH_PATH, JSON.stringify(current, null, 2));
-            chmodSync(PI_AUTH_PATH, 0o600);
-          } catch (writeErr) {
-            console.warn(`[pi-xai] Failed to persist refreshed xAI token for xai: ${writeErr}`);
-          }
+          persistPiOAuthEntry(piAuth!, "xai", r);
           return r;
         });
         return { apiKey: refreshed.access, source: `pi-auth:${PI_AUTH_PATH}:xai (refreshed)` };
       }
-      return { apiKey: xaiEntry.access, source: `pi-auth:${PI_AUTH_PATH}:xai (oauth)` };
+      if (needsRefresh) {
+        const rescued = await tryRefreshUsingGrokCliRefresh("xai", access, piAuth!);
+        if (rescued) return rescued;
+      } else {
+        return { apiKey: access, source: `pi-auth:${PI_AUTH_PATH}:xai (oauth)` };
+      }
     }
   }
 
@@ -1551,7 +1651,7 @@ export async function autoImportGrokCliIfNeeded(): Promise<boolean> {
   const grokBuildEntry = {
     type: "oauth" as const,
     access: grok.accessToken,
-    refresh: undefined,
+    refresh: grok.refreshToken?.trim() || undefined,
     expires: Math.max(now, exp),
     source: "grok-cli",
     email: grok.email,

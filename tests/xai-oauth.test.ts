@@ -99,11 +99,14 @@ describe("xai-oauth", () => {
     const auth = {
       [`https://auth.x.ai::${XAI_OAUTH_CLIENT_ID}`]: {
         key: "grok-cli-token",
+        refresh_token: "grok-refresh",
       },
     };
     fs.writeFileSync(TEST_GROK_PATH, JSON.stringify(auth), "utf8");
     expect(readGrokCliAuth()?.accessToken).toBe("grok-cli-token");
+    expect(readGrokCliAuth()?.refreshToken).toBe("grok-refresh");
 
+    // Non-JWT access is treated as still valid (isXaiAccessTokenExpiring=false for non-JWT).
     fs.writeFileSync(
       TEST_PI_PATH,
       JSON.stringify({ "grok-build": { type: "oauth", access: "pi-oauth-token" } }),
