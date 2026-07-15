@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **README rewrite** — documents Grok Build protocol alignment, removed Cursor shims, Imagine tools, and the roadmap: provider/OAuth is transitional as Pi gains native Grok; package focus shifts to Grok Build / xAI tools and QoL.
+
 ## [0.16.2] - 2026-07-16
 
 ### Fixed
