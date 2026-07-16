@@ -15,6 +15,7 @@ import { registerGrokCliConvHeaders, registerXaiProvider } from "./xai-provider.
 import { isGrokCliProxyBaseUrl, xaiRequestHeaders } from "./xai-stream.ts";
 import { registerXaiImageGen } from "./xai-image-gen.ts";
 import { registerXaiVision } from "./xai-vision.ts";
+import { registerXaiGoal } from "./xai-goal.ts";
 import {
   clearUsageStatus,
   isGrokModel,
@@ -418,7 +419,11 @@ export default async function (api: ExtensionAPI) {
 
   // Isolated Imagine tools (image_gen / image_edit only — no video/studio).
   // Official Grok Build protocol. Opt out: xai.text.imageGen: false.
+  // Dual-install: pi-xai-imagine skips image_gen when this package is present.
   registerXaiImageGen(api);
+
+  // Grok Build–style /goal + update_goal (lean: no classifier harness).
+  registerXaiGoal(api);
 
   // Optional footer status: Grok N% left · Nd Nh (Grok models only).
   registerXaiUsageStatus(api);

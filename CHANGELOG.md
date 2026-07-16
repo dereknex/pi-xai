@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Grok Build–style goal mode** — `/goal <objective>` plus tool `update_goal` (progress / complete / blocked). Lean port without classifier harness; active-goal reminder on each turn.
+
 ### Changed
 
 - **README rewrite** — documents Grok Build protocol alignment, removed Cursor shims, Imagine tools, and the roadmap: provider/OAuth is transitional as Pi gains native Grok; package focus shifts to Grok Build / xAI tools and QoL.
+
+### Fixed
+
+- **Dual-install with pi-xai-imagine** — imagine skips registering `image_gen` when pi-xai is present (official names live here).
 
 ## [0.16.2] - 2026-07-16
 

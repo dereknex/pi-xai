@@ -54,6 +54,7 @@ pi install npm:pi-xai
 | --- | --- |
 | `/login grok-build` | OAuth (web / device / import `grok login`) |
 | `/model grok-build/…` | Catalog below |
+| `/goal <objective>` | Grok Build–style goal mode (`status` / `pause` / `resume` / `clear`) |
 | `/xai-usage` | Monthly/weekly subscription bars (`% left`) + reset |
 | `/xai-usage statusbar` | Footer `Grok 40% left · 3d 12h` (Grok models only) |
 | `/xai-vision:status` | Vision routing for text-only models (Composer default) |
@@ -114,6 +115,16 @@ Pi cost numbers are **per-token UI estimates**, not subscription credits. Real a
 
 ## Features (flavor pack)
 
+### Goal mode (Grok Build)
+
+```text
+/goal ship the feature end-to-end
+/goal status
+/goal pause | resume | clear
+```
+
+Registers tool **`update_goal`** (`message` | `completed` | `blocked_reason`). No classifier/subagent harness — pursue until done.
+
 ### Imagine (in-package)
 
 | Tool | Purpose |
@@ -121,7 +132,9 @@ Pi cost numbers are **per-token UI estimates**, not subscription credits. Real a
 | `image_gen` | Text → image (Grok Build name) |
 | `image_edit` | Edit with local path / URL refs (paths → data URIs) |
 
-Opt out if you run a separate Imagine package:
+**Dual-install:** if **pi-xai-imagine** is also loaded, it skips `image_gen` so only this package owns the official name (video/studio stay in imagine).
+
+Opt out Imagine tools here:
 
 ```json
 { "xai": { "text": { "imageGen": false } } }
