@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>xAI / Grok extras for <a href="https://github.com/earendil-works/pi">Pi</a></strong><br>
-  Grok Build protocol · Imagine tools · usage QoL · agentic xAI APIs
+  Grok Build protocol · Imagine · video · web_fetch · goal / plan · prompt ghost · usage
 </p>
 
 <p align="center">
@@ -20,23 +20,19 @@
 
 ## Direction
 
-**Today:** full Grok Build provider path in Pi (subscription proxy, OAuth, catalog, payload parity with [open-source Grok Build](https://github.com/xai-org/grok-build)).
+**Today:** Grok Build provider path for Pi (subscription **cli-chat-proxy**, OAuth, model catalog, payload/header parity with [open-source Grok Build](https://github.com/xai-org/grok-build)).
 
-**Soon:** Pi is expected to ship **native Grok** support. When that lands, the **provider + OAuth core here becomes transitional** and can shrink or go away.
+**Soon:** when Pi ships **native Grok**, the **provider + OAuth layer here is transitional** and can shrink. This package stays a **Grok / xAI flavor pack**: tools and QoL that core Pi will not own.
 
-**What this package becomes:** a **Grok / xAI flavor pack** — tools and QoL that core Pi will not own:
-
-| Keep / grow | Drop when Pi is native |
+| Lives in **pi-xai** | Use other extensions (below) |
 | --- | --- |
-| Imagine `image_gen` / `image_edit` (+ video later) | Provider catalog / model registration |
-| `/goal`, `/plan`, prompt ghost suggestions | Login / OAuth plumbing (if Pi owns auth) |
-| `/xai-usage` + optional statusbar | Payload/header shims only needed for our provider |
-| Agentic xAI tools, `xai_x_search`, multi-agent | Cursor/Composer name shims (**already removed**) |
-| Composer vision routing, session QoL | |
+| Protocol, catalog, agentic xAI tools | Task / subagent harness → [pi-subagents](https://github.com/edxeth/pi-subagents) |
+| Imagine / video / `web_fetch` | Live todos → [pi-tasks](https://github.com/edxeth/pi-tasks) |
+| `/goal`, `/plan`, prompt ghost, `/xai-usage` | Recurring prompts (`/loop`-like) → [pi-schedule-prompt](https://github.com/tintinweb/pi-schedule-prompt) |
+| Composer vision routing | MCP bridges → [pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) |
+| Voice / TTS / STT | **[pi-xai-voice](https://github.com/luxus/pi-xai-voice)** |
 
-Sibling packages: **[pi-xai-voice](https://github.com/luxus/pi-xai-voice)** (TTS/STT, Telegram voice). **pi-xai-imagine** is being folded in (thin Imagine already lives here).
-
-Requires **Pi ≥ 0.80**. Protocol reference: open-source Grok Build. Docs: [xAI Responses](https://docs.x.ai).
+Requires **Pi ≥ 0.80**. Docs: [xAI Responses](https://docs.x.ai).
 
 ---
 
@@ -55,11 +51,11 @@ pi install npm:pi-xai
 | --- | --- |
 | `/login grok-build` | OAuth (web / device / import `grok login`) |
 | `/model grok-build/…` | Catalog below |
-| `/goal <objective>` | Grok Build–style goal mode (`status` / `pause` / `resume` / `clear`) |
-| `/plan` | Plan mode on/off (`status` / `show`); tools `enter_plan_mode` / `exit_plan_mode` |
-| `/imagine` | Image gen (prompt passed **verbatim** to `image_gen`) |
+| `/goal <objective>` | Goal mode (`status` / `pause` / `resume` / `clear`) + tool `update_goal` |
+| `/plan` | Plan mode (`on` / `off` / `status` / `show`); tools `enter_plan_mode` / `exit_plan_mode` |
+| `/imagine` | Image gen — prompt passed **verbatim** to `image_gen` |
 | `/imagine-video` | Video workflow (`image_gen` → `image_to_video`) |
-| `/xai-suggest` | Next-prompt ghost after turns (`on` / `off` / `clear`); **Tab** accepts |
+| `/xai-suggest` | Next-prompt ghost (`on` / `off` / `clear`); **Tab** commits |
 | `/xai-usage` | Monthly/weekly subscription bars (`% left`) + reset |
 | `/xai-usage statusbar` | Footer `Grok 40% left · 3d 12h` (Grok models only) |
 | `/xai-vision:status` | Vision routing for text-only models (Composer default) |
@@ -68,17 +64,46 @@ pi install npm:pi-xai
 
 ---
 
-## Aligned with Grok Build (current)
+## Companion extensions (Grok-like features we don’t reimplement)
 
-Wire protocol matches the official CLI / open-source Grok Build:
+Stack these next to pi-xai when you want a fuller Grok Build feel without bloating this package:
 
-- Default base: **`https://cli-chat-proxy.grok.com/v1`** (subscription catalog)
-- Client headers: Grok CLI **`0.2.101`**, `grok-shell`, token-auth middleware
-- Dynamic **`x-grok-conv-id`** via `before_provider_headers`
-- **`include: reasoning.encrypted_content`** on reasoning models (proxy + public API; do not strip)
-- OAuth scopes + device-code surface aligned with official client
-- Official tool names: **`image_gen`**, **`image_edit`** (Imagine)
-- **No** Cursor capital tool shims (`Grep`/`Glob`/`WebSearch`) — use Pi natives + server `web_search`
+| Grok-ish need | Extension | Notes |
+| --- | --- | --- |
+| Subagents / parallel tasks | [edxeth/pi-subagents](https://github.com/edxeth/pi-subagents) | Replaces snacking Grok `task` / `wait_tasks` / kill-task harness |
+| Structured todos / progress UI | [edxeth/pi-tasks](https://github.com/edxeth/pi-tasks) | Replaces snacking Grok `todo_write` |
+| Recurring / scheduled prompts | [tintinweb/pi-schedule-prompt](https://github.com/tintinweb/pi-schedule-prompt) | Replaces snacking Grok `/loop` + `scheduler_*` |
+| MCP servers as tools | [nicobailon/pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) | Private APIs, extra tools Grok might cover via MCP |
+| Voice / dictation / TTS | [luxus/pi-xai-voice](https://github.com/luxus/pi-xai-voice) | Sibling; uses pi-xai OAuth when present |
+| Full Imagine studio / extra media | [luxus/pi-xai-imagine](https://github.com/luxus/pi-xai-imagine) | Dual-install: video tools auto-skip here if imagine is loaded |
+
+Example `~/.pi/agent/settings.json` packages list:
+
+```json
+{
+  "packages": [
+    "npm:pi-xai",
+    "github:luxus/pi-xai-voice",
+    "github:edxeth/pi-subagents",
+    "github:edxeth/pi-tasks",
+    "github:tintinweb/pi-schedule-prompt",
+    "github:nicobailon/pi-mcp-adapter"
+  ]
+}
+```
+
+(Paths like `../../projects/pi-xai` work for local checkouts.)
+
+---
+
+## Aligned with Grok Build
+
+- Default base: **`https://cli-chat-proxy.grok.com/v1`**
+- Client **`0.2.101`** / `grok-shell` headers + dynamic **`x-grok-conv-id`**
+- **`include: reasoning.encrypted_content`** on reasoning models (proxy + public API)
+- Official tool names: **`image_gen`**, **`image_edit`**, **`image_to_video`**, **`web_fetch`**, plan/goal tools
+- **No** Cursor capital shims (`Grep`/`Glob`/`WebSearch`) — Pi natives + server `web_search`
+- CLI import keeps **`refresh_token`** from `~/.grok/auth.json`
 
 Public API override:
 
@@ -95,10 +120,8 @@ Public API override:
 | --- | --- | --- |
 | Base | `cli-chat-proxy.grok.com/v1` | `api.x.ai/v1` |
 | Auth | `/login grok-build` | OAuth or `XAI_API_KEY` |
-| Encrypted reasoning | yes (with CLI headers) | yes |
-| Imagine / TTS | prefer `api.x.ai` when tools need it | same |
-
-CLI import keeps **`refresh_token`** from `~/.grok/auth.json` (0.16.1+). Dead access tokens are refreshed or skipped — never reused.
+| Encrypted reasoning | yes (CLI headers) | yes |
+| Media tools | often use `api.x.ai` when proxy lacks routes | same |
 
 ---
 
@@ -114,61 +137,61 @@ CLI import keeps **`refresh_token`** from `~/.grok/auth.json` (0.16.1+). Dead ac
 | `grok-4.20-0309-non-reasoning` | 2M | text + image | Fast 4.20 |
 | `grok-4.20-multi-agent-0309` | 2M | text + image | Multi-agent research |
 
-Pi cost numbers are **per-token UI estimates**, not subscription credits. Real allowance: `/xai-usage`.
+Pi cost numbers are **per-token UI estimates**. Real subscription allowance: `/xai-usage`.
 
 ---
 
-## Features (flavor pack)
+## Features
 
-### Goal mode (Grok Build)
+### Goal mode
 
 ```text
 /goal ship the feature end-to-end
-/goal status
-/goal pause | resume | clear
+/goal status | pause | resume | clear
 ```
 
-Registers tool **`update_goal`** (`message` | `completed` | `blocked_reason`). No classifier/subagent harness — pursue until done.
+Tool **`update_goal`**: `message` | `completed` | `blocked_reason`. Lean (no classifier harness).
 
-### Plan mode (Grok Build)
+### Plan mode
 
 ```text
 /plan          # toggle
 /plan on|off|status|show
 ```
 
-Tools **`enter_plan_mode`** / **`exit_plan_mode`** (official ids). Writes **`.pi/plan.md`**. While on: disables `edit`/`write`, allowlists read-only bash. Exit surfaces the plan for approval before implement.
+Tools **`enter_plan_mode`** / **`exit_plan_mode`**. Plan file **`.pi/plan.md`**. While on: no `edit`/`write`; bash allowlist.
 
 ### Prompt ghost (next message)
 
-After each agent turn, predicts what you are likely to type next (Grok Build prompt-suggestions idea). Shown as `💡 Tab → …` above the editor; **Tab** inserts it.
+After each turn, predicts the next user prompt (default model **`grok-composer-2.5-fast`**). Dim text **in the empty textbox**; **Tab** commits; Enter sends (ANSI stripped).
 
 ```text
 /xai-suggest on|off|status|clear
 ```
 
-Fills the **empty textbox** with dim ghost text after each turn (Composer model by default). **Tab** commits it to plain text; **Enter** sends it (ANSI stripped). Typing over it clears the ghost. Disable: `XAI_PROMPT_SUGGESTIONS=0` or `/xai-suggest off`. Model: `XAI_PROMPT_SUGGESTIONS_MODEL` (default **`grok-composer-2.5-fast`**).
+`XAI_PROMPT_SUGGESTIONS=0` or `/xai-suggest off` disables. Model override: `XAI_PROMPT_SUGGESTIONS_MODEL`.
 
-### Imagine (in-package)
+### Imagine & video
 
 | Tool / cmd | Purpose |
 | --- | --- |
-| `/imagine` | Slash → model calls `image_gen` with prompt verbatim |
-| `image_gen` | Text → image (Grok Build name) |
-| `image_edit` | Edit with local path / URL refs (paths → data URIs) |
-| `/imagine-video` | Slash → `image_gen` then `image_to_video` |
-| `image_to_video` | Animate one source image (duration 6\|10s) |
-| `web_fetch` | Fetch public URL → markdown/text (SSRF-guarded) |
-
-**Dual-install:** if **pi-xai-imagine** is also loaded, it skips `image_gen`; this package also **skips video tools** so imagine can own studio/video. Opt out here:
+| `/imagine` | Slash → `image_gen` with prompt **verbatim** |
+| `image_gen` | Text → image |
+| `image_edit` | Edit (paths → data URIs) |
+| `/imagine-video` | Single-clip workflow |
+| `image_to_video` | Animate one image (duration 6 or 10s) |
 
 ```json
 { "xai": { "text": { "imageGen": false, "videoGen": false } } }
 ```
 
-### Agentic server tools (on by default)
+Video tools **auto-skip** when **pi-xai-imagine** is in your packages list.
 
-Merged into Grok chat next to Pi local tools:
+### `web_fetch`
+
+Client fetch of a public URL → markdown/text. HTTPS upgrade, SSRF blocks (localhost / private / metadata), size + char caps. Not for authenticated private sites.
+
+### Agentic server tools (default on)
 
 ```json
 {
@@ -187,7 +210,7 @@ Merged into Grok chat next to Pi local tools:
 | --- | --- |
 | `xai_generate_text` | Full Responses API |
 | `xai_x_search` | Native X search |
-| `xai_multi_agent` | Multi-agent research (**on by default**; 4.20 multi-agent) |
+| `xai_multi_agent` | Multi-agent research (default on; 4.20 multi-agent) |
 
 ```json
 { "xai": { "text": { "multiAgent": false } } }
@@ -208,17 +231,15 @@ Needs Grok Build OAuth. Web: [grok.com usage](https://grok.com/?_s=usage).
 
 ### Vision routing (Composer)
 
-Only **Composer** is text-only among Grok models. Default mode `composer`: `read` images → describe via `grok-4.5` → text.
+Default **`composer`**: images from `read` → describe via `grok-4.5` → text.
 
 ```text
-/xai-vision:composer   # default
-/xai-vision:on         # all text-only models
-/xai-vision:off
+/xai-vision:composer | on | off | status | cache-clear
 ```
 
 Config: `~/.pi/xai-vision.json`
 
-### What the provider still does (while it exists)
+### Provider behavior (while present)
 
 1. Strip OpenAI-only fields xAI rejects  
 2. Merge server built-ins with Pi tools  
@@ -244,10 +265,10 @@ npm run verify:deps
 | `index.ts` | Entry, tools, hooks |
 | `xai-provider.ts` | Catalog + provider (transitional) |
 | `xai-oauth.ts` | OAuth + `/xai-usage` (transitional core) |
-| `xai-config.ts` | Settings |
+| `xai-config.ts` | Settings + dual-install detection |
 | `xai-stream.ts` | CLI proxy headers |
 | `xai-images.ts` | Image path → data URI |
-| `xai-image-gen.ts` | Imagine tools + `/imagine` |
+| `xai-image-gen.ts` | `image_gen` / `image_edit` + `/imagine` |
 | `xai-video-gen.ts` | `image_to_video` + `/imagine-video` |
 | `xai-web-fetch.ts` | `web_fetch` |
 | `xai-goal.ts` | `/goal` + `update_goal` |
